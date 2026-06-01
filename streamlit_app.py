@@ -466,6 +466,8 @@ st.markdown(
     <div class="app-footer">
         Developed and maintained by
         <a href="https://github.com/Xatta-Trone" target="_blank">Monzurul Islam</a>
+        ·
+        <a href="https://github.com/Xatta-Trone/abbreviation-checker/pulls" target="_blank">Contribute on GitHub</a>
     </div>
     """,
     unsafe_allow_html=True,
