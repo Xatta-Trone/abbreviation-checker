@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+runtime/
+temp_outputs/
+*.xlsx
+*_highlighted_*.pdf
+*_abbreviation_results_*.xlsx
