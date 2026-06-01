@@ -9,7 +9,7 @@ from pathlib import Path
 import streamlit as st
 import streamlit_shadcn_ui as ui
 
-from app_config import APP_TITLE, INACTIVITY_TIMEOUT_MINUTES, MAX_ACTIVE_USERS, MAX_PAGES, MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB
+from app_config import ACTIVE_HEARTBEAT_SECONDS, APP_TITLE, INACTIVITY_TIMEOUT_MINUTES, MAX_ACTIVE_USERS, MAX_PAGES, MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB, QUEUE_POLL_SECONDS
 from file_manager import cleanup_old_files, create_run_dir, path_belongs_to_user, safe_folder_name, save_uploaded_file
 from pipeline_utils import collection_to_highlight_items, export_to_excel, highlight_terms_in_pdf, process_pdf
 from session_manager import clear_user_state, get_or_create_user_state, get_usage_summary, new_user_id, update_user_state
@@ -293,6 +293,33 @@ def show_error_card(title: str, description: str) -> None:
     )
 
 
+@st.fragment(run_every=QUEUE_POLL_SECONDS)
+def render_queue_status(user_id: str) -> None:
+    current_status, _, current_queue_position = get_or_create_user_state(user_id)
+    current_usage = get_usage_summary()
+
+    if current_status != "queued":
+        st.rerun()
+
+    ui.alert(
+        title="The app is currently full",
+        description=(
+            f"Active users: {current_usage['active_users']}/{MAX_ACTIVE_USERS}. "
+            f"Your queue position is {current_queue_position}. "
+            f"This page checks automatically every {QUEUE_POLL_SECONDS // 60 or 1} minute."
+        ),
+        key="queued_alert",
+    )
+
+    if st.button("Refresh status"):
+        st.rerun()
+
+
+@st.fragment(run_every=ACTIVE_HEARTBEAT_SECONDS)
+def keep_active_session_alive(user_id: str) -> None:
+    get_or_create_user_state(user_id)
+
+
 user_id = get_browser_user_id()
 cleanup_old_files()
 status, state, queue_position = get_or_create_user_state(user_id)
@@ -334,13 +361,10 @@ with action_col:
     start_new = st.button("Start new session", use_container_width=True)
 
 if status == "queued":
-    ui.alert(
-        title="The app is currently full",
-        description=f"Your queue position is {queue_position}. Please keep this tab open and refresh status when a slot opens.",
-        key="queued_alert",
-    )
-    st.button("Refresh status")
+    render_queue_status(user_id)
     st.stop()
+
+keep_active_session_alive(user_id)
 
 if start_new:
     clear_user_state(user_id)

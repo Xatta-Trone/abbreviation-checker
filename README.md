@@ -33,8 +33,10 @@ Edit `.env` to change runtime limits:
 MAX_ACTIVE_USERS=5
 MAX_PDF_SIZE_MB=20
 MAX_PAGES=100
-INACTIVITY_TIMEOUT_MINUTES=30
-CLEANUP_MAX_FILE_AGE_MINUTES=30
+INACTIVITY_TIMEOUT_MINUTES=5
+CLEANUP_MAX_FILE_AGE_MINUTES=5
+QUEUE_POLL_SECONDS=60
+ACTIVE_HEARTBEAT_SECONDS=60
 ```
 
 If you change `MAX_PDF_SIZE_MB`, also update `.streamlit/config.toml` so Streamlit's uploader text matches the app limit.

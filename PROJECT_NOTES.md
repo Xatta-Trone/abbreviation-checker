@@ -74,8 +74,10 @@ APP_TITLE="Abbreviation Checker"
 MAX_ACTIVE_USERS=5
 MAX_PDF_SIZE_MB=20
 MAX_PAGES=100
-INACTIVITY_TIMEOUT_MINUTES=30
-CLEANUP_MAX_FILE_AGE_MINUTES=30
+INACTIVITY_TIMEOUT_MINUTES=5
+CLEANUP_MAX_FILE_AGE_MINUTES=5
+QUEUE_POLL_SECONDS=60
+ACTIVE_HEARTBEAT_SECONDS=60
 ```
 
 Important: if `MAX_PDF_SIZE_MB` changes, also update `.streamlit/config.toml`:
@@ -119,6 +121,8 @@ Behavior:
 - If fewer than 5 active users exist, the user becomes active.
 - If 5 active users exist, the user enters the queue.
 - Queue position is shown on screen.
+- Queue status auto-polls every `QUEUE_POLL_SECONDS` seconds.
+- Active open sessions heartbeat every `ACTIVE_HEARTBEAT_SECONDS` seconds.
 - Inactive users are removed after the configured timeout.
 - When an active slot opens, the first queued user is promoted.
 
@@ -246,11 +250,11 @@ Expected: same user ID and current state remain.
 
 ### App reaches active-user limit
 
-Expected: extra users see queue position instead of upload UI.
+Expected: extra users see queue position instead of upload UI, and the queue screen polls automatically every 60 seconds by default.
 
 ### User is inactive for too long
 
-Expected: user is removed from active list/queue, files are cleaned up, and their slot is freed.
+Expected: user is removed from active list/queue, files are cleaned up, and their slot is freed. Open active tabs heartbeat every 60 seconds by default, while closed tabs stop heartbeating and expire after 5 minutes by default.
 
 ### Uploaded PDF is too large
 
@@ -332,6 +336,7 @@ Still pending or partial from the pasted plan:
 
 - The app does not yet have true login/authentication.
 - Browser identity is not security-grade identity; it is session convenience.
+- Pure Streamlit does not provide a reliable server-side tab-close event. Users are removed through heartbeat/inactivity timeout cleanup rather than immediate browser-close detection.
 - Background cleanup is request-driven, not a continuously running worker.
 - Streamlit Community Cloud may reset runtime/temp files.
 - Cookie/local-storage behavior can differ in privacy-restricted browsers.
