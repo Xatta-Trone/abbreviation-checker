@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 import streamlit_shadcn_ui as ui
 
 from app_config import APP_TITLE, INACTIVITY_TIMEOUT_MINUTES, MAX_ACTIVE_USERS, MAX_PAGES, MAX_PDF_SIZE_BYTES, MAX_PDF_SIZE_MB
@@ -17,8 +16,6 @@ from session_manager import clear_user_state, get_or_create_user_state, get_usag
 
 
 USER_COOKIE_NAME = "abbreviation_checker_user_id"
-USER_STORAGE_KEY = "abbreviation_checker_user_id"
-COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 
 st.set_page_config(page_title=APP_TITLE, page_icon=":page_facing_up:", layout="centered")
 
@@ -248,50 +245,25 @@ def is_valid_user_id(value: str | None) -> bool:
     return bool(value and re.fullmatch(r"[a-f0-9]{32}", value))
 
 
-def sync_browser_identity(user_id: str) -> None:
-    components.html(
-        f"""
-        <script>
-        const uid = "{user_id}";
-        localStorage.setItem("{USER_STORAGE_KEY}", uid);
-        document.cookie = "{USER_COOKIE_NAME}=" + uid + "; path=/; max-age={COOKIE_MAX_AGE_SECONDS}; SameSite=Lax";
-        </script>
-        """,
-        height=0,
-    )
-
-
 def get_browser_user_id() -> str:
     query_user_id = st.query_params.get("uid")
     if is_valid_user_id(query_user_id):
         st.session_state.user_id = query_user_id
-        sync_browser_identity(query_user_id)
         return query_user_id
 
-    pending_user_id = st.session_state.get("user_id") or new_user_id()
-    st.session_state.user_id = pending_user_id
+    cookie_user_id = st.context.cookies.get(USER_COOKIE_NAME)
+    if is_valid_user_id(cookie_user_id):
+        st.session_state.user_id = cookie_user_id
+        st.query_params["uid"] = cookie_user_id
+        return cookie_user_id
 
-    components.html(
-        f"""
-        <script>
-        const storageKey = "{USER_STORAGE_KEY}";
-        const cookieName = "{USER_COOKIE_NAME}";
-        const fallbackUid = "{pending_user_id}";
-        const cookieMatch = document.cookie.match(new RegExp("(^| )" + cookieName + "=([^;]+)"));
-        const cookieUid = cookieMatch ? cookieMatch[2] : null;
-        const storedUid = localStorage.getItem(storageKey);
-        const valid = (value) => /^[a-f0-9]{{32}}$/.test(value || "");
-        const uid = valid(storedUid) ? storedUid : (valid(cookieUid) ? cookieUid : fallbackUid);
-        localStorage.setItem(storageKey, uid);
-        document.cookie = cookieName + "=" + uid + "; path=/; max-age={COOKIE_MAX_AGE_SECONDS}; SameSite=Lax";
-        const url = new URL(window.location.href);
-        url.searchParams.set("uid", uid);
-        window.location.replace(url.toString());
-        </script>
-        """,
-        height=0,
-    )
-    st.stop()
+    pending_user_id = st.session_state.get("user_id")
+    if not is_valid_user_id(pending_user_id):
+        pending_user_id = new_user_id()
+
+    st.session_state.user_id = pending_user_id
+    st.query_params["uid"] = pending_user_id
+    return pending_user_id
 
 
 def show_processing_overlay() -> None:
@@ -318,101 +290,6 @@ def show_error_card(title: str, description: str) -> None:
         </div>
         """,
         unsafe_allow_html=True,
-    )
-
-
-def mount_client_pdf_guard() -> None:
-    components.html(
-        """
-        <script>
-        (function () {
-          if (window.__pdfGuardMounted) return;
-          window.__pdfGuardMounted = true;
-
-          const toastId = "pdf-guard-toast";
-
-          function showToast(message) {
-            let toast = document.getElementById(toastId);
-            if (!toast) {
-              toast = document.createElement("div");
-              toast.id = toastId;
-              toast.style.position = "fixed";
-              toast.style.right = "16px";
-              toast.style.bottom = "16px";
-              toast.style.zIndex = "1000000";
-              toast.style.maxWidth = "360px";
-              toast.style.padding = "12px 14px";
-              toast.style.borderRadius = "8px";
-              toast.style.background = "#ffffff";
-              toast.style.border = "1px solid #fecaca";
-              toast.style.borderLeft = "5px solid #dc2626";
-              toast.style.color = "#b91c1c";
-              toast.style.fontWeight = "600";
-              toast.style.boxShadow = "0 12px 28px rgba(17,24,39,0.15)";
-              toast.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-              document.body.appendChild(toast);
-            }
-            toast.textContent = message;
-            toast.style.display = "block";
-            clearTimeout(window.__pdfGuardToastTimer);
-            window.__pdfGuardToastTimer = setTimeout(() => {
-              toast.style.display = "none";
-            }, 2600);
-          }
-
-          function filesHaveNonPdf(fileList) {
-            if (!fileList || !fileList.length) return false;
-            for (const file of fileList) {
-              const name = (file.name || "").toLowerCase();
-              const mime = (file.type || "").toLowerCase();
-              const looksPdf = name.endsWith(".pdf") || mime === "application/pdf";
-              if (!looksPdf) return true;
-            }
-            return false;
-          }
-
-          function clearAllUploaderInputs() {
-            document.querySelectorAll('input[type="file"]').forEach((input) => {
-              try {
-                input.value = "";
-              } catch (e) {}
-            });
-          }
-
-          function rejectIfInvalid(fileList, evt) {
-            if (!filesHaveNonPdf(fileList)) return false;
-            if (evt) {
-              evt.preventDefault();
-              evt.stopPropagation();
-              if (typeof evt.stopImmediatePropagation === "function") {
-                evt.stopImmediatePropagation();
-              }
-            }
-            clearAllUploaderInputs();
-            showToast("Only PDF files are accepted. Please choose a PDF.");
-            return true;
-          }
-
-          document.addEventListener("drop", (evt) => {
-            rejectIfInvalid(evt.dataTransfer && evt.dataTransfer.files, evt);
-          }, true);
-
-          document.addEventListener("dragover", (evt) => {
-            const files = evt.dataTransfer && evt.dataTransfer.files;
-            if (filesHaveNonPdf(files)) {
-              evt.preventDefault();
-            }
-          }, true);
-
-          document.addEventListener("change", (evt) => {
-            const target = evt.target;
-            if (!target || target.tagName !== "INPUT" || target.type !== "file") return;
-            rejectIfInvalid(target.files, evt);
-          }, true);
-        })();
-        </script>
-        """,
-        height=0,
     )
 
 
@@ -518,8 +395,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-mount_client_pdf_guard()
 
 uploaded_file = st.file_uploader(
     "Upload PDF",

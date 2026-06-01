@@ -9,7 +9,7 @@ The app lets a user upload a PDF, extract abbreviations and possible full forms,
 Current user flow:
 
 1. User opens the Streamlit app.
-2. App identifies the browser user using URL `uid`, browser local storage, and cookie storage.
+2. App identifies the browser user using URL `uid`.
 3. App checks active-user capacity.
 4. User uploads a PDF.
 5. App validates file size and page count.
@@ -30,7 +30,7 @@ Current user flow:
 - openpyxl
 - filelock
 - python-dotenv
-- browser local storage and cookies through a small injected JavaScript helper
+- URL query params for browser/session identity
 
 ## Main Files
 
@@ -89,22 +89,21 @@ Otherwise Streamlit's upload widget text may not match the app's validation limi
 
 ## User Identity
 
-The app currently uses layered browser identity:
+The app currently uses URL-based browser identity:
 
 1. URL query param: `?uid=<user_id>`
-2. Browser local storage
-3. Browser cookie
-4. New generated ID if no existing identity is found
+2. Existing Streamlit-readable cookie if available
+3. New generated ID if no existing identity is found
 
-This prevents normal refreshes and new tabs/windows in the same browser from consuming multiple active-user slots.
+This prevents normal refreshes from consuming multiple active-user slots. To reuse the same app user in a new tab/window, keep the generated `uid` in the URL.
 
 Expected behavior:
 
-- Same browser/new tab: same user ID.
-- Same browser/new window: same user ID.
+- Same URL/new tab: same user ID.
+- Same URL/new window: same user ID.
 - Different browser: different user ID.
 - Incognito/private window: different user ID.
-- Cleared browser storage/cookies: new user ID.
+- URL without `uid` and no readable cookie: new user ID.
 - Shared URL with `uid`: opens that same app user state unless overwritten later.
 
 ## Active User And Queue System
@@ -218,7 +217,6 @@ Upload behavior:
 - The uploader is configured for one file at a time.
 - The UI hides Streamlit's extra add-file control when possible.
 - The uploader keeps `type=["pdf"]` as the native accept filter.
-- A client-side PDF guard handles drag/drop/selection edge cases by clearing invalid files and showing a toast.
 - File type validation is also checked app-side as a defensive fallback.
 - Validation/processing errors use a red error card.
 
@@ -240,7 +238,7 @@ streamlit-shadcn-ui
 
 ### Same user opens a new tab
 
-Expected: same browser user ID is reused from local storage/cookie.
+Expected: same user ID is reused if the tab includes the same `uid` in the URL.
 
 ### Same user refreshes the app
 
@@ -305,7 +303,7 @@ Implemented from the pasted plan:
 - Queue for extra users.
 - Inactivity timeout cleanup.
 - Old temporary file cleanup on app load/refresh.
-- Same-browser tab/window identity using URL `uid`, local storage, and cookies.
+- Same-session identity using URL `uid`.
 - JSON runtime state for active users and queue.
 - `filelock` around runtime JSON reads/writes.
 - File access validation before download buttons.
@@ -317,10 +315,10 @@ Implemented from the pasted plan:
 Different from the pasted plan:
 
 - The original package suggestion was `streamlit-cookies-manager`. That package timed out with the current Streamlit version during testing.
-- The Python local-storage/cookie components also caused startup blocking in some reload states, so the current app uses a small injected JavaScript helper for browser local storage and cookies instead.
-- User identity prefers a valid URL `uid` first. If no `uid` is present, the browser helper redirects to the stored local-storage/cookie ID, or to a newly generated ID. This makes shared/current URLs and new tabs behave predictably.
+- The Python local-storage/cookie components caused startup blocking in some reload states, and `st.components.v1.html` is no longer safe on current Streamlit Cloud. The app no longer injects browser scripts during render.
+- User identity now prefers a valid URL `uid`, then an existing Streamlit-readable cookie if available, then a newly generated ID.
 - Streamlit uploader max size is also configured in `.streamlit/config.toml` because `.env` cannot change Streamlit's built-in uploader text by itself.
-- Browser identity persistence is non-blocking and avoids Python component writes during normal reruns. This helps avoid UI clicks being interrupted by component updates.
+- This URL-first approach trades automatic same-browser tab syncing for reliable rendering on Streamlit Cloud and normal browsers.
 
 Still pending or partial from the pasted plan:
 

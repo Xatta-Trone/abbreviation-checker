@@ -23,7 +23,7 @@ streamlit run streamlit_app.py
 
 Generated user files are stored under `temp_outputs/` and runtime queue/session files under `runtime/`. Both are ignored by Git.
 
-The current version uses URL `uid`, browser local storage, and browser cookies together so new tabs/windows in the same browser reuse the same app user.
+The current version uses URL `uid` as the reliable browser/session identity. Keep the generated `uid` in the URL when opening another tab or window to reuse the same app user.
 
 ## Limits
 
