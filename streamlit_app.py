@@ -336,13 +336,13 @@ st.caption("Upload a PDF, extract abbreviation results into Excel, and download 
 
 limit_cols = st.columns(4)
 with limit_cols[0]:
-    ui.metric_card(title="Active users", content=f"{usage['active_users']}/{MAX_ACTIVE_USERS}", description="Concurrent processing slots", key="active_users_card")
+    ui.metric_card(label="Active users", value=f"{usage['active_users']}/{MAX_ACTIVE_USERS}", description="Concurrent processing slots", key="active_users_card")
 with limit_cols[1]:
-    ui.metric_card(title="File size", content=f"{MAX_PDF_SIZE_MB} MB", description="Maximum PDF upload", key="file_size_card")
+    ui.metric_card(label="File size", value=f"{MAX_PDF_SIZE_MB} MB", description="Maximum PDF upload", key="file_size_card")
 with limit_cols[2]:
-    ui.metric_card(title="Page limit", content=str(MAX_PAGES), description="Maximum PDF pages", key="page_limit_card")
+    ui.metric_card(label="Page limit", value=str(MAX_PAGES), description="Maximum PDF pages", key="page_limit_card")
 with limit_cols[3]:
-    ui.metric_card(title="Session", content=f"{INACTIVITY_TIMEOUT_MINUTES} min", description="Inactive files expire", key="session_limit_card")
+    ui.metric_card(label="Session", value=f"{INACTIVITY_TIMEOUT_MINUTES} min", description="Inactive files expire", key="session_limit_card")
 
 badge_col, spacer_col, action_col = st.columns([3.2, 1.1, 1.3], vertical_alignment="center")
 with badge_col:

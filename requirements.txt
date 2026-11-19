@@ -4,4 +4,4 @@ pandas
 openpyxl
 filelock
 python-dotenv
-streamlit-shadcn-ui
+streamlit-shadcn-ui>=1.5.0,<2
